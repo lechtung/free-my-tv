@@ -52,11 +52,26 @@ About ten minutes. You need a Google TV or Android TV (Android 9 or newer) and a
    brew install --cask temurin android-commandlinetools android-platform-tools
    sdkmanager "build-tools;34.0.0" "platforms;android-34"
    ```
-   On Linux, get OpenJDK 17, Android's command-line tools and adb from your package manager, then run the same `sdkmanager` line. On Windows, use WSL.
-3. **Build:**
-   ```bash
-   ./build.sh
+   On Linux, get OpenJDK 17, Android's command-line tools and adb from your package manager, then run the same `sdkmanager` line.
+   On Windows (10/11), open **PowerShell** in the project folder and run:
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   .\setup-windows.ps1
    ```
+3. **Build:**
+   - On **macOS / Linux**:
+     ```bash
+     ./build.sh
+     ```
+   - On **Windows**:
+     In PowerShell, open Git Bash:
+     ```powershell
+     Start-Process "C:\Program Files\Git\git-bash.exe"
+     ```
+     Then in the Git Bash window that opens, run:
+     ```bash
+     ./build_windows.sh
+     ```
    The first run creates `config.properties`. Set your city and your [TMDB key](#the-tmdb-key) there, then run it again.
 4. **Install:**
    ```bash
