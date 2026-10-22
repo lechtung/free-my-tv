@@ -38,6 +38,16 @@ public class HomeActivity extends Activity {
         home = new HomeView(this);
         setContentView(home);
         getWindow().setBackgroundDrawable(null);
+        if (Recs.fromApps() && checkSelfPermission("android.permission.READ_TV_LISTINGS") != android.content.pm.PackageManager.PERMISSION_GRANTED
+                && !getPreferences(MODE_PRIVATE).getBoolean("askedForTvListings", false)) {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("askedForTvListings", true).apply();
+            requestPermissions(new String[] {"android.permission.READ_TV_LISTINGS"}, 1);
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == 1) Recs.get(this).invalidate();
     }
 
     @Override protected void onResume() {

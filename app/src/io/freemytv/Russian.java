@@ -13,6 +13,22 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Recommendations": return "Рекомендации";
+            case "From your apps": return "Из ваших приложений";
+            case "Discover (TMDB)": return "Подборки (TMDB)";
+            case "TMDB + your apps": return "TMDB + ваши приложения";
+            case "Recommendation apps": return "Приложения рекомендаций";
+            case "Recommendation limit": return "Лимит рекомендаций";
+            case "All": return "Все";
+            case "Custom": return "Настроено";
+            case "OK turns on or off in recommendations and Continue Watching.": return "OK включает или отключает в рекомендациях и Продолжить просмотр.";
+
+            case "Allow TV listings access in the app's permissions.": return "Разрешите доступ к телепрограмме в разрешениях приложения.";
+            case "Recommendations from your shelf apps.": return "Рекомендации приложений с вашей полки.";
+            case "Shelf apps have not published recommendations yet.": return "Приложения на полке ещё не опубликовали рекомендации.";
+            case "Android TV channels and Watch Next": return "Каналы Android TV и Продолжить просмотр";
+            case "No recommendations in this tab yet.": return "В этой вкладке пока нет рекомендаций.";
+
             case "Live TV": return "Телеканалы";
             case "All Apps": return "Приложения";
             case "Settings": return "Настройки";
@@ -28,6 +44,7 @@ final class Russian {
             case "Crypto": return "Криптовалюты";
             case "24h change": return "изменение за 24 ч";
             case "For You": return "Для вас";
+            case "“For You” title": return "Заголовок «Для вас»";
             case "← → to move · OK to drop · Back to cancel": return "← → — переместить · OK — оставить · Назад — отмена";
             case "Moving ": return "Перемещение: ";
             case ", position ": return ", место ";

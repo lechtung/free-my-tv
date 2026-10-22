@@ -6,6 +6,22 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "Recommendations": return "Empfehlungen";
+            case "From your apps": return "Von deinen Apps";
+            case "Discover (TMDB)": return "Entdecken (TMDB)";
+            case "TMDB + your apps": return "TMDB + deine Apps";
+            case "Recommendation apps": return "Empfehlungs-Apps";
+            case "Recommendation limit": return "Empfehlungslimit";
+            case "All": return "Alle";
+            case "Custom": return "Benutzerdefiniert";
+            case "OK turns on or off in recommendations and Continue Watching.": return "OK schaltet in Empfehlungen und Weiterschauen ein oder aus.";
+
+            case "Allow TV listings access in the app's permissions.": return "Erlaube den Zugriff auf TV-Programmdaten in den App-Berechtigungen.";
+            case "Recommendations from your shelf apps.": return "Empfehlungen von Apps in deiner Leiste.";
+            case "Shelf apps have not published recommendations yet.": return "Die Apps in deiner Leiste haben noch keine Empfehlungen veröffentlicht.";
+            case "Android TV channels and Watch Next": return "Android TV-Kanäle und Weiterschauen";
+            case "No recommendations in this tab yet.": return "Keine Empfehlungen in diesem Tab.";
+
             case "Live TV": return "Live-TV";
             case "All Apps": return "Alle Apps";
             case "Settings": return "Einstellungen";
@@ -21,6 +37,7 @@ final class German {
             case "Crypto": return "Krypto";
             case "24h change": return "Änderung in 24 h";
             case "For You": return "Für dich";
+            case "“For You” title": return "Titel „Für dich“";
             case "Couldn't open ": return "Konnte nicht öffnen: ";
             case " of ": return " von ";
             case "← → to move · OK to drop · Back to cancel": return "← → verschieben · OK ablegen · Zurück abbrechen";

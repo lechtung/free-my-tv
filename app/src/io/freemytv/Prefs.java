@@ -11,8 +11,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Settings changed on the TV itself (Free My TV > Settings). config.properties only gives the first
@@ -81,6 +83,37 @@ final class Prefs {
 
     static void setTheme(String v) { put("theme", v); }
 
+    /** Android recommendations: app-published feeds by default, optional TMDB discovery, both, or off. */
+    static String recommendations() {
+        String v = sp().getString("recommendations", "apps");
+        return v.equals("tmdb") || v.equals("both") || v.equals("off") ? v : "apps";
+    }
+
+    static void setRecommendations(String v) { put("recommendations", v); }
+
+    /** Packages excluded from recommendations and continue watching. */
+    static Set<String> disabledRecApps() {
+        String v = sp().getString("disabled_rec_apps", "");
+        Set<String> set = new HashSet<>();
+        if (!v.isEmpty()) for (String p : v.split(",")) if (!p.isEmpty()) set.add(p);
+        return set;
+    }
+
+    static void setRecAppEnabled(String pkg, boolean enabled) {
+        Set<String> set = disabledRecApps();
+        if (enabled) set.remove(pkg); else set.add(pkg);
+        StringBuilder sb = new StringBuilder();
+        for (String p : set) sb.append(sb.length() == 0 ? "" : ",").append(p);
+        put("disabled_rec_apps", sb.toString());
+    }
+
+    static boolean isRecAppEnabled(String pkg) {
+        return !disabledRecApps().contains(pkg);
+    }
+
+    static int recLimit() { return sp().getInt("rec_limit", 40); }
+    static void setRecLimit(int limit) { sp().edit().putInt("rec_limit", limit).apply(); version++; }
+
     // MARK: - City
 
     static String city() { return sp().getString("city", Config.CITY).trim(); }
@@ -102,6 +135,9 @@ final class Prefs {
 
     static boolean coin(int i) { return sp().getBoolean("coin" + i, true); }
     static void setCoin(int i, boolean on) { put("coin" + i, on); }
+
+    static boolean forYouTitle() { return sp().getBoolean("for_you_title", true); }
+    static void setForYouTitle(boolean on) { put("for_you_title", on); }
 
     // MARK: - Shelf
 

@@ -113,7 +113,7 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, HOME_SETTINGS = 2, REMOTE_KEYS = 3, PICKER = 4, SHELF_EDIT = 5;
+        private static final int MAIN = 0, HOME_CHOICE = 1, HOME_SETTINGS = 2, REMOTE_KEYS = 3, PICKER = 4, SHELF_EDIT = 5, REC_APPS = 6;
         private static final float LIST_ROW_H = 68, LIST_ROW_GAP = 6;
         private static final int PICK_VISIBLE = 9;
         private static final float LIST_X = 1000, LIST_R = 1824, LIST_TOP = 186, ROW_H = 74, ROW_GAP = 8, CHOICE_H = 104;
@@ -129,13 +129,14 @@ public class SettingsActivity extends Activity {
         // The shelf editor: the apps it can hold (selected ones first, in order) and the selection.
         private final List<String[]> shelfRows = new ArrayList<>();
         private final List<String> shelfOrder = new ArrayList<>();
+        private final List<String[]> recAppRows = new ArrayList<>();
         private int pickFor, pickCurrent, pickScroll;   // pickFor: the remote button (index + 1)
         private static final int PICK_CITY = 0;
         private final List<String[]> cities = new ArrayList<>();
         private String cityStatus = "";
         private final RectF tmp = new RectF(), rowRect = new RectF(), focusBox = new RectF();
         private JSONObject state = new JSONObject(), recs = new JSONObject();
-        private boolean hasKey;
+        private boolean canReadRecs;
         private int screen = MAIN, focus;
         private boolean running, okDown, backDown, wasBusy;
         private StaticLayout errorLayout;   // the last error, wrapped (rebuilt only when it changes)
@@ -151,7 +152,7 @@ public class SettingsActivity extends Activity {
             @Override public void run() {
                 if (!running) return;
                 state = HomeMode.state(getContext());
-                hasKey = Recs.hasKey(getContext());
+                canReadRecs = Recs.canRead(getContext());
                 recs = Recs.status(getContext());
                 boolean nowBusy = !busyText().isEmpty();
                 if (nowBusy) pendingAt = 0;
@@ -238,6 +239,13 @@ public class SettingsActivity extends Activity {
                     int place = shelfOrder.indexOf(app[0]);
                     return app[1] + ", " + (place >= 0 ? Ui.tr("na prateleira, posição ", "on the shelf, place ") + (place + 1)
                             : Ui.tr("fora da prateleira", "not on the shelf"));
+                }
+                case REC_APPS: {
+                    int at = pickScroll + row;
+                    if (at >= recAppRows.size()) return "";
+                    String[] app = recAppRows.get(at);
+                    boolean on = Prefs.isRecAppEnabled(app[0]);
+                    return app[1] + ", " + onOff(on) + ", " + (at + 1) + Ui.tr(" de ", " of ") + recAppRows.size();
                 }
                 default:
                     return "";
@@ -337,6 +345,7 @@ public class SettingsActivity extends Activity {
                 case HOME_SETTINGS: return settingLabels().length;
                 case PICKER: return Math.min(PICK_VISIBLE, pickLabels.size());
                 case SHELF_EDIT: return Math.min(PICK_VISIBLE, shelfRows.size());
+                case REC_APPS: return Math.min(PICK_VISIBLE, recAppRows.size());
                 default: return Prefs.KEYS.length;
             }
         }
@@ -365,7 +374,7 @@ public class SettingsActivity extends Activity {
             c.drawText(Ui.tr("Início e tela de descanso da TV", "Your TV's home screen and screensaver"), cx, 660 * k, subtitle);
             c.drawText(versionName(getContext()), cx, 704 * k, version);
 
-            if (screen == MAIN) drawMain(c, seconds); else if (screen == HOME_CHOICE) drawChoice(c); else if (screen == PICKER) drawPicker(c); else if (screen == SHELF_EDIT) drawShelfEditor(c); else drawList(c);
+            if (screen == MAIN) drawMain(c, seconds); else if (screen == HOME_CHOICE) drawChoice(c); else if (screen == PICKER) drawPicker(c); else if (screen == SHELF_EDIT) drawShelfEditor(c); else if (screen == REC_APPS) drawRecAppsEditor(c); else drawList(c);
         }
 
         private void drawMain(Canvas c, float seconds) {
@@ -428,22 +437,32 @@ public class SettingsActivity extends Activity {
             drawNotices(c, y + 40 * k);
         }
 
-        /** Home screen picks: status, and the credit TMDB asks for. */
+        /** App-published recommendations and their access status. */
         private float drawRecs(Canvas c, float y) {
             float x = LIST_X * k + 30 * k;
             c.drawText(Ui.tr("RECOMENDAÇÕES", "RECOMMENDATIONS"), x, y, header);
             String line;
             String error = recs.optString("error");
             int count = recs.optInt("count");
-            if (!hasKey) line = Ui.tr("Sem chave do TMDB: veja o README (config.properties).", "No TMDB key: see the README (config.properties).");
+            if (!Recs.enabled()) line = Ui.tr("Desligado", "Off");
+            else if (!Recs.fromApps()) {
+                if (!Recs.hasKey(getContext())) line = Ui.tr("Sem chave do TMDB: veja o README (config.properties).", "No TMDB key: see the README (config.properties).");
+                else if (!error.isEmpty()) line = Ui.tr("Erro: ", "Error: ") + error + ".";
+                else if (count > 0) line = Ui.tr("Ligadas · " + count + " títulos nos apps da TV, 3 novos a cada hora.",
+                        "On · " + count + " titles from the TV's apps, 3 new ones every hour.");
+                else line = Ui.tr("Buscando os títulos…", "Fetching titles…");
+            } else if (!canReadRecs) line = Ui.tr("Permita o acesso aos programas de TV nas permissões do app.",
+                    "Allow TV listings access in the app's permissions.");
             else if (!error.isEmpty()) line = Ui.tr("Erro: ", "Error: ") + error + ".";
-            else if (count > 0) line = Ui.tr("Ligadas · " + count + " títulos nos apps da TV, 3 novos a cada hora.",
-                    "On · " + count + " titles from the TV's apps, 3 new ones every hour.");
-            else line = Ui.tr("Buscando os títulos…", "Fetching titles…");
+            else if (count > 0) line = Ui.tr("Recomendações dos apps da sua prateleira.", "Recommendations from your shelf apps.") + " (" + count + ")";
+            else line = Ui.tr("Os apps da prateleira ainda não publicaram recomendações.", "Shelf apps have not published recommendations yet.");
             c.drawText(TextUtils.ellipsize(line, notice, 790 * k, TextUtils.TruncateAt.END).toString(), x, y + 42 * k, notice);
             version.setTextAlign(Paint.Align.LEFT);
-            c.drawText(Ui.tr("Usa a API do TMDB, sem endosso ou certificação do TMDB.",
-                    "This product uses the TMDB API but is not endorsed or certified by TMDB."), x, y + 78 * k, version);
+            String credit = !Recs.enabled() ? "" : Recs.fromApps()
+                    ? Ui.tr("Canais do Android TV e Continuar assistindo", "Android TV channels and Watch Next")
+                    : Ui.tr("Usa a API do TMDB, sem endosso ou certificação do TMDB.",
+                            "This product uses the TMDB API but is not endorsed or certified by TMDB.");
+            c.drawText(credit, x, y + 78 * k, version);
             version.setTextAlign(Paint.Align.CENTER);
             return y + 78 * k;
         }
@@ -607,6 +626,9 @@ public class SettingsActivity extends Activity {
                             } else if (screen == PICKER) {
                                 focus = pickFor - 1;
                                 screen = REMOTE_KEYS;
+                            } else if (screen == REC_APPS) {
+                                focus = RECS_APPS_ROW;
+                                screen = HOME_SETTINGS;
                             } else {
                                 focus = screen == HOME_SETTINGS ? 2 : screen == SHELF_EDIT ? 3 : screen == REMOTE_KEYS ? 4 : 0;
                                 screen = MAIN;
@@ -625,8 +647,9 @@ public class SettingsActivity extends Activity {
         // MARK: - Home Settings and Remote Buttons
 
         private static final String[] LANGUAGES = {"auto", "pt", "en", "es", "de", "ru"}, UNITS = {"auto", "C", "F"}, THEMES = {"auto", "light", "dark"};
-        /** Home Settings: language, temperature, theme, weather, quotes, then one row per coin. */
-        private static final int CITY_ROW = 4, COIN_ROWS = 6;
+        private static final int[] REC_LIMITS = {20, 30, 40, 50, 60, 80, 100};
+        /** Home Settings, followed by one row per coin. */
+        private static final int CITY_ROW = 4, RECS_ROW = 6, RECS_APPS_ROW = 7, RECS_LIMIT_ROW = 8, FOR_YOU_ROW = 9, COIN_ROWS = 10;
 
         private boolean dollar() {
             return "BRL".equalsIgnoreCase(Config.CURRENCY.trim());
@@ -640,6 +663,10 @@ public class SettingsActivity extends Activity {
             l.add(Ui.tr("Widget do clima", "Weather widget"));
             l.add(Ui.tr("Cidade", "City"));
             l.add(Ui.tr("Widget de cotações", "Quotes widget"));
+            l.add(Ui.tr("Recomendações", "Recommendations"));
+            l.add(Ui.tr("Apps de recomendações", "Recommendation apps"));
+            l.add(Ui.tr("Limite de recomendações", "Recommendation limit"));
+            l.add(Ui.tr("Título “Para você”", "“For You” title"));
             l.add("Bitcoin");
             l.add("Ethereum");
             l.add("Solana");
@@ -660,6 +687,15 @@ public class SettingsActivity extends Activity {
             v[3] = onOff(Prefs.weather());
             v[CITY_ROW] = !cityStatus.isEmpty() ? cityStatus : Prefs.city().isEmpty() ? "—" : Prefs.city();
             v[5] = onOff(Prefs.quotes());
+            String source = Prefs.recommendations();
+            v[RECS_ROW] = source.equals("off") ? Ui.tr("Desligado", "Off")
+                    : source.equals("both") ? Ui.tr("TMDB + dos seus apps", "TMDB + your apps")
+                    : source.equals("apps") ? Ui.tr("Dos seus apps", "From your apps")
+                    : Ui.tr("Descobrir (TMDB)", "Discover (TMDB)");
+            Set<String> disabled = Prefs.disabledRecApps();
+            v[RECS_APPS_ROW] = disabled.isEmpty() ? Ui.tr("Todas", "All") : Ui.tr("Personalizado", "Custom");
+            v[RECS_LIMIT_ROW] = String.valueOf(Prefs.recLimit());
+            v[FOR_YOU_ROW] = onOff(Prefs.forYouTitle());
             // No quotes widget, nowhere to show prices: the coins read as off (and stay locked) until it is back on.
             for (int i = COIN_ROWS; i < v.length; i++) v[i] = onOff(Prefs.quotes() && Prefs.coin(i - COIN_ROWS));
             return v;
@@ -734,6 +770,35 @@ public class SettingsActivity extends Activity {
                 case 3: Prefs.setWeather(!Prefs.weather()); break;
                 case CITY_ROW: return;
                 case 5: Prefs.setQuotes(!Prefs.quotes()); break;
+                case RECS_ROW: {
+                    String[] sources = {"both", "apps", "tmdb", "off"};
+                    int at = java.util.Arrays.asList(sources).indexOf(Prefs.recommendations());
+                    Prefs.setRecommendations(sources[(at + dir + sources.length) % sources.length]);
+                    if (Recs.fromApps() && !Recs.canRead(activity)) {
+                        activity.requestPermissions(new String[] {"android.permission.READ_TV_LISTINGS"}, 1);
+                    }
+                    Recs.get(getContext()).refreshIfStale();
+                    break;
+                }
+                case RECS_APPS_ROW: {
+                    openRecAppsEditor();
+                    return;
+                }
+                case RECS_LIMIT_ROW: {
+                    int current = Prefs.recLimit();
+                    int at = 2;
+                    for (int i = 0; i < REC_LIMITS.length; i++) {
+                        if (REC_LIMITS[i] == current) { at = i; break; }
+                    }
+                    int next = REC_LIMITS[(at + dir + REC_LIMITS.length) % REC_LIMITS.length];
+                    Prefs.setRecLimit(next);
+                    Recs.get(getContext()).refreshIfStale();
+                    break;
+                }
+                case FOR_YOU_ROW: {
+                    Prefs.setForYouTitle(!Prefs.forYouTitle());
+                    break;
+                }
                 default:
                     if (!Prefs.quotes()) return;
                     Prefs.setCoin(focus - COIN_ROWS, !Prefs.coin(focus - COIN_ROWS));
@@ -794,11 +859,11 @@ public class SettingsActivity extends Activity {
         }
 
         private boolean scrolling() {
-            return screen == PICKER || screen == SHELF_EDIT;
+            return screen == PICKER || screen == SHELF_EDIT || screen == REC_APPS;
         }
 
         private int listSize() {
-            return screen == SHELF_EDIT ? shelfRows.size() : pickLabels.size();
+            return screen == REC_APPS ? recAppRows.size() : screen == SHELF_EDIT ? shelfRows.size() : pickLabels.size();
         }
 
         // MARK: - Shelf editor
@@ -876,6 +941,57 @@ public class SettingsActivity extends Activity {
             c.drawText(Ui.tr("OK põe ou tira da prateleira (até " + HomeApps.MAX_SHELF + "). ← → mudam a ordem.",
                     "OK adds or removes (up to " + HomeApps.MAX_SHELF + "). ← → change the order.",
                     "OK pone o quita del estante (hasta " + HomeApps.MAX_SHELF + "). ← → cambian el orden."), LIST_X * k + 30 * k, hy, hint);
+        }
+
+        private void openRecAppsEditor() {
+            recAppRows.clear();
+            PackageManager pm = getContext().getPackageManager();
+            List<String[]> found = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+            for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
+                String pkg = ri.activityInfo.packageName;
+                if (pkg.equals(getContext().getPackageName()) || !seen.add(pkg)) continue;
+                found.add(new String[] {pkg, String.valueOf(ri.loadLabel(pm))});
+            }
+            Collections.sort(found, (a, b) -> a[1].toLowerCase(Locale.ROOT).compareTo(b[1].toLowerCase(Locale.ROOT)));
+            recAppRows.addAll(found);
+            pickScroll = 0;
+            focus = 0;
+            screen = REC_APPS;
+        }
+
+        private void toggleRecApp() {
+            if (recAppRows.isEmpty()) return;
+            int at = pickScroll + focus;
+            if (at < 0 || at >= recAppRows.size()) return;
+            String pkg = recAppRows.get(at)[0];
+            Prefs.setRecAppEnabled(pkg, !Prefs.isRecAppEnabled(pkg));
+            Recs.get(getContext()).refreshIfStale();
+        }
+
+        private void drawRecAppsEditor(Canvas c) {
+            Paint heading = Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF);
+            c.drawText(Ui.tr("Apps de recomendações", "Recommendation apps"), LIST_X * k + 30 * k, (LIST_TOP - 24) * k, heading);
+            int rows = rowCount();
+            for (int i = 0; i < rows; i++) {
+                int at = pickScroll + i;
+                if (at >= recAppRows.size()) break;
+                String[] app = recAppRows.get(at);
+                boolean on = Prefs.isRecAppEnabled(app[0]);
+                float y = (LIST_TOP + 20 + i * (LIST_ROW_H + LIST_ROW_GAP)) * k;
+                rowRect.set(LIST_X * k, y, LIST_R * k, y + LIST_ROW_H * k);
+                float f = drawRowBackground(c, i);
+                rowLabel.setColor(blend(on ? 0xF2FFFFFF : 0x80FFFFFF, on ? INK : 0x801C1C1E, f));
+                rowValue.setColor(blend(on ? 0xB3FFFFFF : 0x66FFFFFF, on ? 0xB31C1C1E : 0x661C1C1E, f));
+                float base = rowRect.centerY() + Ui.halfCap(rowLabel);
+                c.drawText(TextUtils.ellipsize(app[1], new TextPaint(rowLabel), 520 * k, TextUtils.TruncateAt.END).toString(), rowRect.left + 30 * k, base, rowLabel);
+                c.drawText(onOff(on), rowRect.right - 30 * k, base, rowValue);
+            }
+            Paint hint = Ui.text(Ui.regular, 23 * k, 0x8CFFFFFF);
+            float hy = (LIST_TOP + 20 + rows * (LIST_ROW_H + LIST_ROW_GAP) + 36) * k;
+            c.drawText(Ui.tr("OK ativa ou desativa nas recomendações e Seguir vendo.",
+                    "OK turns on or off in recommendations and Continue Watching."), LIST_X * k + 30 * k, hy, hint);
         }
 
         private void openPicker(int which) {
@@ -977,10 +1093,17 @@ public class SettingsActivity extends Activity {
                 toggleShelfApp();
                 invalidate();
                 return;
+            } else if (screen == REC_APPS) {
+                toggleRecApp();
+                invalidate();
+                return;
             } else if (screen == REMOTE_KEYS) {
                 openPicker(focus + 1);
             } else if (screen == HOME_SETTINGS && focus == CITY_ROW) {
                 askCity();
+                return;
+            } else if (screen == HOME_SETTINGS && focus == RECS_APPS_ROW) {
+                openRecAppsEditor();
                 return;
             } else if (screen == HOME_SETTINGS) {
                 adjust(1);

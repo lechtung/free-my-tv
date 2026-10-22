@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.freemytv.tests">
+    <application android:label="Free My TV tests" />
+    <instrumentation android:name="io.freemytv.RecommendationsTest" android:targetPackage="io.freemytv"
+        android:targetProcesses="io.freemytv:home" />
+</manifest>

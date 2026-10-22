@@ -63,6 +63,7 @@ final class HomeApps {
     static final class Item {
         int kind;
         String key, label, pkg, inputId, number;
+        Intent contentIntent; // app-published recommendation; otherwise open the app itself
         String symbol;      // icon for the shortcuts and special cards
         Bitmap tile;        // 16:9 card (apps and specials)
         Bitmap logo;        // colored logo with no background (shelf); null = use the card
@@ -157,7 +158,10 @@ final class HomeApps {
     /** The shelf's packages in order: the user's list (Settings > Shelf), or the built-in one. */
     static List<String> shelfPackages(Context c) {
         List<String> custom = Prefs.shelf();
-        if (custom != null) return custom;
+        return custom != null ? custom : defaultShelfPackages(c);
+    }
+
+    static List<String> defaultShelfPackages(Context c) {
         List<String> out = new ArrayList<>();
         PackageManager pm = c.getPackageManager();
         for (String[] d : SHELF) if (out.size() < MAX_SHELF && launchIntent(pm, d[2]) != null) out.add(d[2]);
@@ -363,8 +367,8 @@ final class HomeApps {
         Intent intent;
         switch (it.kind) {
             case APP:
-                intent = launchIntent(a.getPackageManager(), it.pkg);
-                if (intent != null) intent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+                intent = it.contentIntent == null ? launchIntent(a.getPackageManager(), it.pkg) : new Intent(it.contentIntent);
+                if (intent != null && it.contentIntent == null) intent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
                 break;
             case LIVE_TV:
                 intent = liveTv(a);
